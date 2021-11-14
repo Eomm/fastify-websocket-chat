@@ -3,19 +3,19 @@
 const fs = require('fs/promises')
 const path = require('path')
 
-module.exports = function plugin (instance, opts, next) {
-  instance.register(require('fastify-websocket'), {
+module.exports = function plugin (app, opts, next) {
+  app.register(require('fastify-websocket'), {
     clientTracking: true
   })
 
   const history = []
 
-  instance.get('/', async (request, reply) => {
+  app.get('/', async (request, reply) => {
     reply.type('text/html')
     return fs.readFile(path.join(__dirname, 'pages/chat.html'))
   })
 
-  instance.get('/chat',
+  app.get('/chat',
     { websocket: true },
     (connection) => {
       const { socket } = connection
@@ -33,9 +33,9 @@ module.exports = function plugin (instance, opts, next) {
                   data: `${new Date().toISOString()}: ${json.data}`
                 })
 
-                const server = instance.websocketServer
+                const server = app.websocketServer
                 // broadcast to all clients
-                instance.log.info('broadcasting to all clients', server.clients.size)
+                app.log.info('broadcasting to all clients', server.clients.size)
                 for (const client of server.clients) {
                   client.send(messageEvent)
                 }
