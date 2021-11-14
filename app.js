@@ -4,7 +4,11 @@ const fs = require('fs/promises')
 const path = require('path')
 
 module.exports = function plugin (instance, opts, next) {
-  instance.register(require('fastify-websocket'))
+  instance.register(require('fastify-websocket'), {
+    clientTracking: true
+  })
+
+  const history = []
 
   instance.get('/', async (request, reply) => {
     reply.type('text/html')
@@ -16,25 +20,28 @@ module.exports = function plugin (instance, opts, next) {
     (connection) => {
       const { socket } = connection
 
-      //   fastify.server.close = function (cb) {
-      // const server = fastify.websocketServer
-      // for (const client of server.clients) {
-      //   client.close()
-      // }
-      // oldClose.call(this, cb)
-
-      // if (history.length > 0) {
-      // }
+      history.map(msg => socket.send(msg))
 
       socket.on('message', function (message) {
         try {
           const json = JSON.parse(message.toString())
           switch (json.type) {
             case 'message':
-              sendMessage({
-                type: 'accepted',
-                data: `${new Date().toISOString()}: ${json.data}`
-              })
+              {
+                const messageEvent = JSON.stringify({
+                  type: 'accepted',
+                  data: `${new Date().toISOString()}: ${json.data}`
+                })
+
+                const server = instance.websocketServer
+                // broadcast to all clients
+                instance.log.info('broadcasting to all clients', server.clients.size)
+                for (const client of server.clients) {
+                  client.send(messageEvent)
+                }
+
+                history.push(messageEvent)
+              }
               break
 
             default:

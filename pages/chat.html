@@ -52,59 +52,75 @@
       },
     });
 
+    function WsConnection(prop) {
+      const [ws, setWs] = React.useState(null);
 
+      React.useEffect(() => {
+        const ws = new WebSocket(prop.url);
+        setWs(ws);
 
+        ws.onopen = () => {
+          console.log('WebSocket connection opened');
+          prop.onOpen()
+          prop.onChannelOpened(function (message) {
+            if (ws.readyState === 1) {
+              ws.send(message);
+            }
+          })
+        };
+
+        ws.onmessage = (event) => {
+          console.log('WebSocket message received:', event.data);
+          try {
+            const json = JSON.parse(event.data);
+            switch (json.type) {
+              case 'accepted':
+              case 'message':
+                prop.onMessage(json)
+                break;
+            }
+          } catch (e) {
+            console.error('Invalid JSON: ', event.data);
+          }
+        };
+
+        ws.onclose = function (event) {
+          console.log('WebSocket connection closed', ws.readyState, event);
+          prop.onClose()
+        };
+
+        ws.onerror = function (error) {
+          console.log('WebSocket error: ', error);
+          if (ws.readyState === 1) {  // open
+            prop.onError(error)
+            ws.close(error);
+          }
+        };
+
+        return function cleanup() {
+          console.log('WebSocket connection cleanup');
+          // ws.close();
+        };
+      }, []);
+
+      return false
+    }
 
     function App() {
       const [connecting, setConnecting] = React.useState(true);
       const [status, setStatus] = React.useState('');
       const [messages, setMessages] = React.useState([]);
+      const [channel, setChannel] = React.useState(null)
 
-      const [ws, setWs] = React.useState({});
-
-      window.WebSocket = window.WebSocket || window.MozWebSocket;
-      const connection = new WebSocket('ws://127.0.0.1:8080/chat');
-
-      connection.onopen = function () {
-        setConnecting(false);
-        setStatus('Connected');
-      };
-
-      connection.onclose = function () {
-        setConnecting(true);
-        setStatus('Disconnected');
-      };
-
-      connection.onmessage = function (message) {
-        try {
-          const json = JSON.parse(message.data);
-          switch (json.type) {
-            case 'accepted':
-            case 'message':
-              setMessages(messages => [...messages, json.data]);
-              break;
-          }
-        } catch (e) {
-          console.error('Invalid JSON: ', message.data);
-        }
-      };
-
-      connection.onerror = function (error) {
-        setConnecting(true);
-        setStatus(error.message);
-
-        connection.close();
-      };
-
-      const submitMessage = (event) => {
+      function submitMessage(event) {
         event.preventDefault();
         const data = new FormData(event.currentTarget);
         const message = data.get('chat-message');
-        if (message && connecting === false) {
-          connection.send(JSON.stringify({
+        if (message && connecting === false && channel) {
+          channel(JSON.stringify({
             type: 'message',
             data: message,
-          }));
+          }))
         }
       };
 
@@ -122,6 +138,14 @@
             <Typography component="h1" variant="h5">
               Fastify WebSockets React Chat
             </Typography>
+            <WsConnection
+              url="ws://localhost:8080/chat"
+              onOpen={() => setConnecting(false)}
+              onChannelOpened={(inChannel) => { setChannel(() => { return inChannel }) }}
+              onMessage={({data}) => setMessages((prevState) => { return [...prevState, data] })}
+              onClose={() => { setConnecting(true); setStatus('Disconnected') }}
+              onError={(error) => { setConnecting(true); setStatus(error.message) }}
+            />
             <Box component="form" onSubmit={submitMessage} noValidate sx={{ mt: 1 }}>
               <TextareaAutosize
                 maxRows={12}
@@ -150,9 +174,7 @@
                 {connecting ? 'Connecting...' : 'Send'}
               </Button>
               <Grid container alignItems="center" justifyContent="center">
-                <Grid item>
-                  {status}
-                </Grid>
+                <Grid item>{status}</Grid>
               </Grid>
             </Box>
           </Box>
