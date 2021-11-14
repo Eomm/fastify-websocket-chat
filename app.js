@@ -15,6 +15,16 @@ module.exports = function plugin (app, opts, next) {
     return fs.readFile(path.join(__dirname, 'pages/chat.html'))
   })
 
+  app.get('/chat-step-one',
+    { websocket: true },
+    (connection) => {
+      const { socket } = connection
+      socket.on('message', function (message) {
+        app.log.info(`Received message: ${message}`)
+        socket.send('echo')
+      })
+    })
+
   app.get('/chat',
     { websocket: true },
     (connection) => {
