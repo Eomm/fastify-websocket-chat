@@ -139,7 +139,7 @@
               Fastify WebSockets React Chat
             </Typography>
             <WsConnection
-              url="ws://localhost:8080/chat"
+              url="ws://localhost:3000/chat"
               onOpen={() => setConnecting(false)}
               onChannelOpened={(inChannel) => { setChannel(() => { return inChannel }) }}
               onMessage={({data}) => setMessages((prevState) => { return [...prevState, data] })}

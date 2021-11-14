@@ -4,6 +4,8 @@
   "description": "A real time chat, using websocket!",
   "main": "index.js",
   "scripts": {
+    "start": "fastify start -l info app.js",
+    "dev": "fastify start -l info app.js --watch --pretty-logs",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -23,6 +25,7 @@
   },
   "dependencies": {
     "fastify": "^3.23.1",
+    "fastify-cli": "^2.13.0",
     "fastify-websocket": "^4.0.0"
   }
 }
