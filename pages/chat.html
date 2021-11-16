@@ -52,17 +52,14 @@
       },
     });
 
-    function WsConnection(prop) {
-      const [ws, setWs] = React.useState(null);
-
+    function WsConnection(props) {
       React.useEffect(() => {
-        const ws = new WebSocket(prop.url);
-        setWs(ws);
+        const ws = new WebSocket(props.url);
 
         ws.onopen = () => {
           console.log('WebSocket connection opened');
-          prop.onOpen()
-          prop.onChannelOpened(function (message) {
+          props.onOpen()
+          props.onChannelOpened(function (message) {
             if (ws.readyState === 1) {
               ws.send(message);
             }
@@ -76,7 +73,7 @@
             switch (json.type) {
               case 'accepted':
               case 'message':
-                prop.onMessage(json)
+                props.onMessage(json)
                 break;
             }
           } catch (e) {
@@ -86,13 +83,13 @@
 
         ws.onclose = function (event) {
           console.log('WebSocket connection closed', ws.readyState, event);
-          prop.onClose()
+          props.onClose()
         };
 
         ws.onerror = function (error) {
           console.log('WebSocket error: ', error);
           if (ws.readyState === 1) {  // open
-            prop.onError(error)
+            props.onError(error)
             ws.close(error);
           }
         };
@@ -124,6 +121,14 @@
         }
       };
 
+      const displayMessage = React.useCallback(({ data }) => {
+        setMessages(prevState => [...prevState, data]);
+      }, [setMessages]);
+
+      const openChannel = React.useCallback((inChannel) => {
+        setChannel(() => { return inChannel })
+      }, [setChannel]);
+
       return (
         <Container component="main" maxWidth="xs">
           <CssBaseline />
@@ -141,17 +146,17 @@
             <WsConnection
               url="ws://localhost:3000/chat"
               onOpen={() => setConnecting(false)}
-              onChannelOpened={(inChannel) => { setChannel(() => { return inChannel }) }}
-              onMessage={({data}) => setMessages((prevState) => { return [...prevState, data] })}
+              onChannelOpened={openChannel}
+              onMessage={displayMessage}
               onClose={() => { setConnecting(true); setStatus('Disconnected') }}
               onError={(error) => { setConnecting(true); setStatus(error.message) }}
             />
             <Box component="form" onSubmit={submitMessage} noValidate sx={{ mt: 1 }}>
               <TextareaAutosize
                 maxRows={12}
-                style={{ width: theme.spacing(60), height: theme.spacing(20) }}
+                style={{ width: theme.spacing(60) }}
                 aria-label="maximum height"
-                placeholder="Chat message"
+                placeholder="Chat messages will appear here"
                 value={messages.join('\n')}
               />
               <TextField
